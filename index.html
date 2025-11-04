@@ -613,65 +613,86 @@
         };
 
         class CloudStorage {
-            constructor() {
-                this.BIN_URL = `https://api.jsonbin.io/v3/b/${JSONBIN_CONFIG.BIN_ID}`;
-                this.API_KEY = JSONBIN_CONFIG.API_KEY;
-            }
+    constructor() {
+        this.BIN_ID = '6909ff4bae596e708f43e309';
+        this.API_KEY = '$2a$10$7S5t9oueGkZTg0iJRE7Eyu9PwBWZp7BxD4zB07bhtRJt8RcyaUsL6';
+        this.BASE_URL = 'https://api.jsonbin.io/v3/b';
+    }
 
-            async saveAllData(data) {
-                try {
-                    const response = await fetch(this.BIN_URL, {
-                        method: 'PUT',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-Master-Key': this.API_KEY
-                        },
-                        body: JSON.stringify(data)
-                    });
-                    
-                    if (!response.ok) throw new Error('Cloud save failed');
-                    return { success: true };
-                } catch (error) {
-                    // Fallback to localStorage
-                    localStorage.setItem('attendanceData', JSON.stringify(data));
-                    return { success: false, error: error.message };
-                }
+    async saveAllData(data) {
+        try {
+            console.log('🔄 Saving to cloud...');
+            const response = await fetch(`${this.BASE_URL}/${this.BIN_ID}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Master-Key': this.API_KEY,
+                    'X-Bin-Name': 'Attendance System',
+                    'X-Bin-Private': 'true'
+                },
+                body: JSON.stringify(data)
+            });
+            
+            const result = await response.json();
+            
+            if (!response.ok) {
+                console.error('❌ Cloud save failed:', result);
+                throw new Error(result.message || 'Cloud save failed');
             }
-
-            async loadAllData() {
-                try {
-                    const response = await fetch(this.BIN_URL, {
-                        headers: { 'X-Master-Key': this.API_KEY }
-                    });
-                    
-                    if (!response.ok) throw new Error('Cloud load failed');
-                    const result = await response.json();
-                    return result.record || this.getDefaultData();
-                } catch (error) {
-                    // Fallback to localStorage
-                    const localData = localStorage.getItem('attendanceData');
-                    return localData ? JSON.parse(localData) : this.getDefaultData();
-                }
-            }
-
-            getDefaultData() {
-                return {
-                    users: {
-                        'admin': { 
-                            username: 'admin', 
-                            password: 'admin123', 
-                            role: 'admin', 
-                            fullName: 'System Administrator',
-                            email: 'admin@school.edu'
-                        }
-                    },
-                    students: {},
-                    attendance: {},
-                    settings: {}
-                };
-            }
+            
+            console.log('✅ Cloud save successful:', result);
+            return { success: true, data: result };
+        } catch (error) {
+            console.error('❌ Cloud save error:', error);
+            // Fallback to localStorage
+            localStorage.setItem('attendanceSystemData', JSON.stringify(data));
+            return { success: false, error: error.message };
         }
+    }
 
+    async loadAllData() {
+        try {
+            console.log('🔄 Loading from cloud...');
+            const response = await fetch(`${this.BASE_URL}/${this.BIN_ID}/latest`, {
+                headers: {
+                    'X-Master-Key': this.API_KEY,  // THIS WAS MISSING!
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            const result = await response.json();
+            
+            if (!response.ok) {
+                console.error('❌ Cloud load failed:', result);
+                throw new Error(result.message || 'Cloud load failed');
+            }
+            
+            console.log('✅ Cloud load successful:', result);
+            return result.record || this.getDefaultData();
+        } catch (error) {
+            console.error('❌ Cloud load error:', error);
+            // Fallback to localStorage
+            const localData = localStorage.getItem('attendanceSystemData');
+            return localData ? JSON.parse(localData) : this.getDefaultData();
+        }
+    }
+
+    getDefaultData() {
+        return {
+            users: {
+                'admin': { 
+                    username: 'admin', 
+                    password: 'admin123', 
+                    role: 'admin', 
+                    fullName: 'System Administrator'
+                }
+            },
+            students: {},
+            attendance: {},
+            settings: {}
+        };
+    }
+}
         // Initialize Cloud Storage
         const cloudStorage = new CloudStorage();
 
